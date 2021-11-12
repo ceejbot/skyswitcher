@@ -1,3 +1,5 @@
+use std::process;
+
 use blake2::{Blake2b, Digest};
 use structopt::clap::AppSettings::*;
 use structopt::StructOpt;
@@ -33,12 +35,18 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     let flags = Flags::from_args();
 
     loggerv::Logger::new()
-        .verbosity(flags.verbose)
+        .verbosity(flags.verbose + 1)
         .line_numbers(false)
         .module_path(false)
         .colors(true)
         .init()
         .unwrap();
+
+    let cwd = std::env::current_dir()?;
+    if !cwd.ends_with("Skyrim Special Edition") {
+        log::error!("You must run skyswitcher from the Skyrim Special Edition directory.");
+        process::exit(1);
+    }
 
     let source_dir = if flags.edition == Edition::Legacy {
         log::info!("running the legacy special edition...");
@@ -54,23 +62,31 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // get shasums of desired files, compare to shasums of destination files;
     // do no work if none needed
     {
+        log::info!(    "checking SkyrimSE.exe hash digests...");
         let buf = std::fs::read(&target_exec)?;
         let target_sum = Blake2b::digest(&buf);
-        let buf = std::fs::read("SkyrimSE.exe")?;
+        let buf = match std::fs::read("SkyrimSE.exe") {
+            Ok(b) => b,
+            Err(_) => Vec::new(),
+        };
         let existing_sum = Blake2b::digest(&buf);
         if target_sum != existing_sum {
-            log::info!("   copying SkyrimSE.exe into place...")
+            log::info!("   copying SkyrimSE.exe into place...");
             std::fs::copy(target_exec, "SkyrimSE.exe")?;
         }
     }
 
     {
+        log::info!(    "checking skse64_loader.exe hash digests...");
         let buf = std::fs::read(&target_skse)?;
         let target_sum = Blake2b::digest(&buf);
-        let buf = std::fs::read("skse64_loader.exe")?;
+        let buf = match std::fs::read("skse64_loader.exe") {
+            Ok(b) => b,
+            Err(_) => Vec::new(),
+        };
         let existing_sum = Blake2b::digest(&buf);
         if target_sum != existing_sum {
-            log::info!("   copying skse64_loader.exe into place...")
+            log::info!("   copying skse64_loader.exe into place...");
             std::fs::copy(target_skse, "SkyrimSE.exe")?;
         }
     }

@@ -8,6 +8,8 @@ Put the executable into your Steam `Skyrim Special Edition` folder. Then set up 
 
 ```sh
 ➜ tree SLL
+Skyrim Special Edition
+
 SLL
 ├── Anniversary
 │  ├── skse64_loader.exe
