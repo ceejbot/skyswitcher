@@ -1,6 +1,8 @@
+use std::fs::File;
 use std::process;
 
 use blake2::{Blake2b, Digest};
+use simplelog::*;
 use structopt::clap::AppSettings::*;
 use structopt::StructOpt;
 use subprocess::{Exec, NullFile};
@@ -12,13 +14,6 @@ use subprocess::{Exec, NullFile};
 )]
 #[structopt(global_setting(ColoredHelp), global_setting(ColorAuto))]
 pub struct Flags {
-    #[structopt(
-        short,
-        long,
-        parse(from_occurrences),
-        help = "Pass -v or -vv to increase verbosity"
-    )]
-    verbose: u64,
     #[structopt(subcommand)]
     edition: Edition,
 }
@@ -34,13 +29,23 @@ enum Edition {
 fn main() -> anyhow::Result<(), anyhow::Error> {
     let flags = Flags::from_args();
 
-    loggerv::Logger::new()
-        .verbosity(flags.verbose + 1)
-        .line_numbers(false)
-        .module_path(false)
-        .colors(true)
-        .init()
-        .unwrap();
+    let config = ConfigBuilder::new()
+        .set_time_format("%F %T".to_string())
+        .build();
+    CombinedLogger::init(vec![
+        TermLogger::new(
+            LevelFilter::Info,
+            config.clone(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            LevelFilter::Debug,
+            config,
+            File::create("skyswitcher.log").unwrap(),
+        ),
+    ])
+    .unwrap();
 
     let cwd = std::env::current_dir()?;
     if !cwd.ends_with("Skyrim Special Edition") {
@@ -65,7 +70,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // get shasums of desired files, compare to shasums of destination files;
     // do no work if none needed
     {
-        log::info!(    "checking SkyrimSE.exe hash digests...");
+        log::info!("checking SkyrimSE.exe hash digests...");
         let buf = std::fs::read(&target_exec)?;
         let target_sum = Blake2b::digest(&buf);
         let buf = match std::fs::read("SkyrimSE.exe") {
@@ -73,7 +78,11 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             Err(_) => Vec::new(),
         };
         let existing_sum = Blake2b::digest(&buf);
-        log::info!("       existing: {}; desired: {}", hex::encode(existing_sum), hex::encode(target_sum));
+        log::info!(
+            "       existing: {}; desired: {}",
+            hex::encode(existing_sum),
+            hex::encode(target_sum)
+        );
         if target_sum != existing_sum {
             log::info!("   copying SkyrimSE.exe into place...");
             std::fs::copy(target_exec, "SkyrimSE.exe")?;
@@ -81,7 +90,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     }
 
     {
-        log::info!(    "checking skse64_loader.exe hash digests...");
+        log::info!("checking skse64_loader.exe hash digests...");
         let buf = std::fs::read(&target_skse)?;
         let target_sum = Blake2b::digest(&buf);
         let buf = match std::fs::read("skse64_loader.exe") {
@@ -89,7 +98,11 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             Err(_) => Vec::new(),
         };
         let existing_sum = Blake2b::digest(&buf);
-        log::info!("       existing: {}; desired: {}", hex::encode(existing_sum), hex::encode(target_sum));
+        log::info!(
+            "       existing: {}; desired: {}",
+            hex::encode(existing_sum),
+            hex::encode(target_sum)
+        );
         if target_sum != existing_sum {
             log::info!("   copying skse64_loader.exe into place...");
             std::fs::copy(target_skse, "SkyrimSE.exe")?;
