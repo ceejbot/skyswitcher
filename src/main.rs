@@ -51,9 +51,12 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     let source_dir = if flags.edition == Edition::Legacy {
         log::info!("running the legacy special edition...");
         "./SLL/Legacy"
-    } else {
+    } else if flags.edition == Edition::Anniversary {
         log::info!("running the anniversary edition...");
         "./SLL/Anniversary"
+    } else {
+        log::error!("Pick legacy or anniversary please!");
+        process::exit(1);
     };
 
     let target_exec = format!("{}/SkyrimSE.exe", source_dir);
@@ -70,6 +73,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             Err(_) => Vec::new(),
         };
         let existing_sum = Blake2b::digest(&buf);
+        log::info!("       existing: {}; desired: {}", hex::encode(existing_sum), hex::encode(target_sum));
         if target_sum != existing_sum {
             log::info!("   copying SkyrimSE.exe into place...");
             std::fs::copy(target_exec, "SkyrimSE.exe")?;
@@ -85,6 +89,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             Err(_) => Vec::new(),
         };
         let existing_sum = Blake2b::digest(&buf);
+        log::info!("       existing: {}; desired: {}", hex::encode(existing_sum), hex::encode(target_sum));
         if target_sum != existing_sum {
             log::info!("   copying skse64_loader.exe into place...");
             std::fs::copy(target_skse, "SkyrimSE.exe")?;
